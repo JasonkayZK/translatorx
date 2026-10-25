@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TranslatorX — 写出来，才是你的。</title>
+<meta name="description" content="TranslatorX 是一款桌面应用：用母语起草，亲手默写外语。红笔逐词批改，甲乙丙丁评分，SM-2 间隔复习。学的是你真正要发出去的那句话。">
+<meta property="og:title" content="TranslatorX — 写出来，才是你的。">
+<meta property="og:description" content="先用母语写，再凭记忆亲手写出外语。逐词批改、间隔复习、18 种语言、Google / DeepL / 大模型翻译。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://jasonkayzk.github.io/translatorx/">
+<meta property="og:image" content="https://jasonkayzk.github.io/translatorx/og-image.png">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://jasonkayzk.github.io/translatorx/og-image.png">
+<link rel="icon" href="icon.png">
+<style>
+@font-face { font-family: "Fraunces VF"; src: url("fonts/fraunces-latin-wght-normal.woff2") format("woff2"); font-weight: 300 900; font-display: swap; }
+@font-face { font-family: "Fraunces VF"; src: url("fonts/fraunces-latin-wght-italic.woff2") format("woff2"); font-weight: 300 900; font-style: italic; font-display: swap; }
+@font-face { font-family: "Geist VF"; src: url("fonts/geist-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+
+:root {
+  /* 汲取自应用 Paper 主题 (src/themes.css) 的纸色系统 */
+  --paper: #f6f5f2;
+  --paper-2: #eeede8;
+  --card: #fffefa;
+  --ink: #242625;
+  --ink-2: #62645f;
+  --ink-3: #83857c;
+  --line: #e1e2da;
+  --line-2: #c7cac0;
+  --seal: #ad4a37;          /* 印章朱红 */
+  --seal-deep: #93392b;
+  --seal-soft: #f6e8e1;
+  --moss: #377156;          /* 批改正确的苔绿 */
+  --moss-soft: #e6f0e9;
+  --amber: #926116;         /* 拼写小错的琥珀 */
+  --amber-soft: #f8efd9;
+  --danger: #b73842;
+  --danger-soft: #fbe9eb;
+  --rule: #d9d3c5;          /* 横格线 */
+  --margin-line: #e8b3a5;   /* 页边红线 */
+  --reading-font: "Fraunces VF", "Songti SC", "Hiragino Mincho ProN", "Noto Serif SC", serif;
+  --reading-font-zh: "Songti SC", "Hiragino Mincho ProN", "Noto Serif SC", serif;
+  --sans-font: "Geist VF", "PingFang SC", "Hiragino Sans", sans-serif;
+  --mono-font: "SF Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  --card-radius: 16px;
+  --shadow: 0 2px 3px -2px rgb(29 35 27 / .06), 0 12px 32px -20px rgb(29 35 27 / .16);
+  --shadow-float: 0 12px 44px -16px rgb(29 35 27 / .24);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #191b19; --paper-2: #20231f; --card: #252824;
+    --ink: #eef0e7; --ink-2: #b6bcb0; --ink-3: #939b8c;
+    --line: #343a30; --line-2: #51594b;
+    --seal: #ecaa91; --seal-deep: #db967d; --seal-soft: #3f3028;
+    --moss: #99cfb0; --moss-soft: #253c2f;
+    --amber: #dfbc77; --amber-soft: #3e3424;
+    --danger: #ffa2aa; --danger-soft: #48292e;
+    --rule: #3a4036; --margin-line: #6e4a40;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans-font);
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection { background: var(--seal-soft); color: var(--seal-deep); }
+
+/* ───────────────────────── 纸张氛围 ───────────────────────── */
+/* 细腻纸纹：两层 SVG 噪点叠加在横格线上 */
+.paper-bg {
+  position: fixed; inset: 0; z-index: -2;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='280'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.53 0 0 0 0 0.48 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='280' height='280' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* 横格线只铺在 hero 区，像作文纸的第一页 */
+.ruled-hero {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 35px,
+    var(--rule) 35px,
+    var(--rule) 36px
+  );
+  -webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0 / .8), transparent 90%);
+          mask-image: linear-gradient(to bottom, rgb(0 0 0 / .8), transparent 90%);
+  opacity: .5;
+}
+
+.container { max-width: 1100px; margin: 0 auto; padding: 0 28px; }
+
+/* ───────────────────────── 导航 ───────────────────────── */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  border-bottom: 1px solid var(--line);
+}
+.nav-inner { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+.brand-mark {
+  display: grid; place-items: center; width: 32px; height: 32px;
+  border-radius: 9px; background: var(--seal); color: #fff;
+  font-family: var(--reading-font-zh); font-weight: 700; font-size: 17px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .2);
+}
+.brand-name { font-size: 15px; font-weight: 600; letter-spacing: .01em; }
+.nav-links { display: flex; align-items: center; gap: 4px; }
+.nav-links a {
+  padding: 7px 13px; border-radius: 8px; font-size: 13px; color: var(--ink-2);
+  text-decoration: none; transition: color .15s, background-color .15s;
+}
+.nav-links a:hover { color: var(--ink); background: color-mix(in srgb, var(--card) 70%, transparent); }
+@media (max-width: 760px) { .nav-links a:not(.btn-nav) { display: none; } }
+
+/* ───────────────────────── 按钮体系 ───────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 22px; border-radius: 11px; cursor: pointer;
+  font-size: 14px; font-weight: 600; text-decoration: none;
+  border: 1px solid transparent;
+  transition: transform .15s, box-shadow .15s, background-color .15s, border-color .15s;
+}
+.btn:active { transform: translateY(1px); }
+.btn-seal {
+  background: var(--seal); color: #fff;
+  box-shadow: 0 2px 0 var(--seal-deep), 0 10px 24px -12px rgb(173 74 55 / .55);
+}
+.btn-seal:hover { background: var(--seal-deep); transform: translateY(-1px); }
+.btn-ghost {
+  border-color: var(--line-2); color: var(--ink); background: var(--card);
+}
+.btn-ghost:hover { border-color: var(--seal); color: var(--seal); }
+.btn-nav { padding: 8px 16px; border-radius: 9px; font-size: 13px; }
+
+/* ───────────────────────── Hero ───────────────────────── */
+.hero { position: relative; padding: 150px 0 110px; }
+.hero-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 64px; align-items: center; }
+@media (max-width: 960px) {
+  .hero-grid { grid-template-columns: 1fr; gap: 56px; }
+  .hero { padding: 120px 0 80px; }
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px 6px 8px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--card);
+  font-size: 12px; color: var(--ink-2); margin-bottom: 26px;
+  box-shadow: var(--shadow);
+}
+.hero-badge .vers { color: var(--seal); font-weight: 600; }
+h1.hero-title {
+  font-family: var(--reading-font-zh);
+  font-size: clamp(40px, 6vw, 64px); line-height: 1.18; font-weight: 700;
+  letter-spacing: .01em; margin-bottom: 26px;
+}
+.hero-title .red { color: var(--seal); }
+.hero-title .hand {
+  font-family: var(--reading-font); font-style: italic; font-weight: 500;
+  font-size: .6em; vertical-align: .12em;
+}
+.hero-sub { font-size: 16.5px; line-height: 1.95; color: var(--ink-2); max-width: 480px; margin-bottom: 38px; }
+.hero-sub b { color: var(--ink); font-weight: 600; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 34px; }
+.hero-meta { display: flex; flex-wrap: wrap; gap: 20px; font-size: 12.5px; color: var(--ink-3); }
+.hero-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.hero-meta svg { width: 14px; height: 14px; }
+
+/* ── 批改卡：产品灵魂的可视化 ── */
+.marked-card {
+  position: relative;
+  border: 1px solid var(--line); border-radius: var(--card-radius);
+  background: var(--card); box-shadow: var(--shadow-float);
+  padding: 30px 30px 24px;
+  transform: rotate(1.4deg);
+}
+.marked-card::before {
+  content: ""; position: absolute; inset: 8px; border-radius: calc(var(--card-radius) - 7px);
+  border: 1px solid color-mix(in srgb, var(--seal) 22%, transparent);
+  pointer-events: none;
+}
+.marked-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.marked-label { font-size: 11px; letter-spacing: .12em; color: var(--ink-3); font-weight: 500; }
+.grade-stamp {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: 10px;
+  border: 2px solid var(--seal); color: var(--seal);
+  font-family: var(--reading-font-zh); font-size: 22px; font-weight: 700;
+  transform: rotate(-7deg);
+  box-shadow: inset 0 0 10px rgb(173 74 55 / .08);
+}
+.marked-src { font-size: 13px; line-height: 2; color: var(--ink-3); margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px dashed var(--line-2); }
+.marked-copy { font-family: var(--reading-font); font-size: 20px; line-height: 2.15; letter-spacing: .01em; }
+.word { position: relative; padding: 0 1px; }
+.word-ok { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--moss) 65%, transparent); text-decoration-thickness: 2.5px; text-underline-offset: 7px; }
+.word-typo {
+  text-decoration: underline wavy; text-decoration-color: var(--amber); text-decoration-thickness: 1.5px; text-underline-offset: 7px;
+  color: var(--ink);
+}
+.word-wrong { color: var(--danger); text-decoration: line-through; text-decoration-thickness: 1.8px; text-decoration-color: color-mix(in srgb, var(--danger) 70%, transparent); }
+.word-missing { border-bottom: 2.5px dotted var(--seal); color: var(--ink-3); font-style: italic; }
+.teacher-note {
+  margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--line-2);
+  font-family: var(--reading-font-zh); color: var(--seal); font-size: 13.5px; line-height: 1.9;
+}
+.teacher-note::before { content: "✎ "; opacity: .8; }
+.marked-foot { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: var(--ink-2);
+  padding: 4px 11px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--paper);
+}
+.chip-ok { color: var(--moss); border-color: color-mix(in srgb, var(--moss) 35%, transparent); }
+.chip-typo { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 35%, transparent); }
+.chip-wrong { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
+.chip-miss { color: var(--seal); border-color: color-mix(in srgb, var(--seal) 35%, transparent); }
+
+/* 朱红「译」悬浮气泡（呼应 App 的输入框气泡） */
+.bubble {
+  position: absolute; right: -14px; bottom: -18px;
+  display: flex; align-items: center; justify-content: center;
+  width: 52px; height: 52px; border-radius: 15px;
+  background: var(--seal); color: #fff;
+  font-family: var(--reading-font-zh); font-size: 24px; font-weight: 700;
+  box-shadow: 0 10px 26px -10px rgb(173 74 55 / .6);
+  animation: float 4.5s ease-in-out infinite;
+}
+@keyframes float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-9px) } }
+
+/* ───────────────────────── 逐段入场动画 ───────────────────────── */
+.rise { opacity: 0; transform: translateY(26px); }
+.rise.in { animation: rise .7s cubic-bezier(.2,.7,.3,1) forwards; }
+@keyframes rise { to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .rise, .rise.in, .bubble { animation: none; opacity: 1; transform: none; }
+  html { scroll-behavior: auto; }
+}
+
+/* ───────────────────────── 小节标题 ───────────────────────── */
+.section { padding: 88px 0; }
+.section-head { max-width: 640px; margin-bottom: 52px; }
+.section-num {
+  font-family: var(--reading-font); font-style: italic; font-size: 15px; color: var(--seal);
+  letter-spacing: .06em; margin-bottom: 12px; display: block;
+}
+h2 { font-family: var(--reading-font-zh); font-size: clamp(28px, 4vw, 38px); font-weight: 700; line-height: 1.3; margin-bottom: 18px; }
+.section-head p { color: var(--ink-2); font-size: 15.5px; line-height: 1.9; }
+
+/* ───────────────────────── 三步流程 ───────────────────────── */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+@media (max-width: 860px) { .steps { grid-template-columns: 1fr; } }
+.step-card {
+  border: 1px solid var(--line); border-radius: var(--card-radius);
+  background: var(--card); padding: 30px 26px;
+  transition: transform .2s, box-shadow .2s, border-color .2s;
+}
+.step-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-float); border-color: color-mix(in srgb, var(--seal) 30%, transparent); }
+.step-tag {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 9px; margin-bottom: 18px;
+  font-family: var(--reading-font); font-style: italic; font-weight: 600; font-size: 16px;
+  background: var(--seal-soft); color: var(--seal);
+}
+.step-card h3 { font-size: 17px; font-weight: 650; margin-bottom: 10px; font-family: var(--sans-font); }
+.step-card p { font-size: 13.5px; line-height: 1.9; color: var(--ink-2); }
+.step-card .zh-quote { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); font-size: 12px; color: var(--ink-3); font-family: var(--reading-font-zh); }
+
+/* ───────────────────────── 模式表格 ───────────────────────── */
+.modes-table { border: 1px solid var(--line); border-radius: var(--card-radius); overflow: hidden; background: var(--card); box-shadow: var(--shadow); }
+.modes-row { display: grid; grid-template-columns: 150px 1fr 1fr; }
+.modes-row + .modes-row { border-top: 1px solid var(--line); }
+.modes-row:first-child { background: color-mix(in srgb, var(--seal) 5%, var(--card)); font-weight: 600; font-size: 13px; }
+.modes-row:first-child > div { padding: 14px 22px; color: var(--ink-2); font-size: 12px; letter-spacing: .08em; }
+.modes-row > div { padding: 20px 22px; font-size: 13.5px; line-height: 1.8; color: var(--ink-2); }
+.modes-row > div:first-child { font-weight: 650; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.modes-row:first-child > div:first-child { color: var(--ink-2); font-weight: 500; }
+@media (max-width: 700px) {
+  .modes-row { grid-template-columns: 1fr; }
+  .modes-row > div { padding: 12px 22px; }
+  .modes-row > div:not(:first-child)::before { content: attr(data-label); display: block; font-size: 10.5px; letter-spacing: .1em; color: var(--ink-3); margin-bottom: 4px; }
+  .modes-row:first-child { display: none; }
+}
+.mmode { display: inline-flex; align-items: center; justify-content: center; padding: 2px 9px; border-radius: 6px; font-size: 11.5px; background: var(--seal-soft); color: var(--seal); font-weight: 600; }
+
+/* ───────────────────────── 功能网格 ───────────────────────── */
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+@media (max-width: 960px) { .features { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .features { grid-template-columns: 1fr; } }
+.feature {
+  border: 1px solid var(--line); border-radius: var(--card-radius); background: var(--card);
+  padding: 26px 24px; transition: transform .2s, box-shadow .2s, border-color .2s;
+}
+.feature:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: var(--line-2); }
+.feature .ico { width: 36px; height: 36px; border-radius: 10px; margin-bottom: 16px; display: grid; place-items: center; background: var(--seal-soft); color: var(--seal); }
+.feature .ico svg { width: 19px; height: 19px; }
+.feature h3 { font-size: 15.5px; font-weight: 650; margin-bottom: 9px; }
+.feature p { font-size: 13px; line-height: 1.85; color: var(--ink-2); }
+.feature .en { font-size: 11px; color: var(--ink-3); font-weight: 500; letter-spacing: .04em; margin-left: 2px; }
+
+/* ───────────────────────── 翻译引擎 ───────────────────────── */
+.engines { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+@media (max-width: 860px) { .engines { grid-template-columns: 1fr; } }
+.engine {
+  border: 1px solid var(--line); border-radius: var(--card-radius);
+  padding: 28px 26px; background: var(--card);
+}
+.engine-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.engine-head h3 { font-size: 16px; font-weight: 650; }
+.engine-kbd { font-size: 11px; color: var(--ink-3); font-family: var(--mono-font); border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; }
+.engine p { font-size: 13px; line-height: 1.85; color: var(--ink-2); }
+.engine .free { color: var(--moss); font-weight: 600; font-size: 12px; }
+.engine-note {
+  grid-column: 1 / -1; text-align: center; font-size: 13px; color: var(--ink-3);
+  padding: 4px 0 0; line-height: 1.9;
+}
+.engine-note b { color: var(--seal); font-weight: 600; }
+
+/* ───────────────────────── 隐私 ───────────────────────── */
+.privacy-card {
+  border: 1px solid color-mix(in srgb, var(--moss) 30%, transparent);
+  background: color-mix(in srgb, var(--moss) 5%, var(--card));
+  border-radius: var(--card-radius); padding: 36px 38px;
+  display: grid; grid-template-columns: auto 1fr; gap: 26px; align-items: start;
+}
+@media (max-width: 700px) { .privacy-card { grid-template-columns: 1fr; padding: 28px 26px; } }
+.privacy-card .ico { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 12px; background: var(--moss); color: var(--card); }
+.privacy-card .ico svg { width: 22px; height: 22px; }
+.privacy-card h3 { font-size: 17px; font-weight: 650; margin-bottom: 8px; }
+.privacy-card p { font-size: 13.5px; line-height: 1.95; color: var(--ink-2); }
+
+/* ───────────────────────── 下载区 ───────────────────────── */
+.dl { padding: 96px 0 40px; }
+.dl-card {
+  position: relative; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 22px;
+  background: var(--card); box-shadow: var(--shadow-float);
+  padding: 62px 56px 54px; text-align: center;
+}
+.dl-card::before {
+  content: ""; position: absolute; inset: 10px; border-radius: 16px;
+  border: 1px dashed color-mix(in srgb, var(--seal) 25%, transparent); pointer-events: none;
+}
+.dl-card h2 { margin-bottom: 14px; }
+.dl-card > p { color: var(--ink-2); font-size: 15px; line-height: 1.9; max-width: 520px; margin: 0 auto 34px; }
+.dl-platforms { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-bottom: 26px; }
+.dl-note { font-size: 12px; color: var(--ink-3); margin-top: 26px; line-height: 1.9; }
+.dl-note a { color: var(--ink-2); text-decoration-color: var(--line-2); }
+.dl-note a:hover { color: var(--seal); }
+
+/* ───────────────────────── footer ───────────────────────── */
+footer { padding: 60px 0 42px; border-top: 1px solid var(--line); margin-top: 70px; }
+.foot-grid { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 28px; align-items: flex-start; }
+.foot-left p { font-size: 12.5px; color: var(--ink-3); line-height: 2; }
+.foot-motto {
+  font-family: var(--reading-font-zh); font-size: 15px; color: var(--ink-2);
+  margin-top: 10px;
+}
+.foot-links { display: flex; gap: 26px; font-size: 13px; }
+.foot-links a { color: var(--ink-2); text-decoration: none; transition: color .15s; }
+.foot-links a:hover { color: var(--seal); }
+.foot-bottom { margin-top: 44px; padding-top: 22px; border-top: 1px dashed var(--line); font-size: 12px; color: var(--ink-3); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+
+/* kbd */
+kbd {
+  font-family: var(--mono-font); font-size: .85em; padding: 2px 7px;
+  border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 6px;
+  background: var(--card); color: var(--ink-2); white-space: nowrap;
+}
+code { font-family: var(--mono-font); font-size: .9em; padding: 1px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="paper-bg"></div>
+
+<!-- 导航 -->
+<nav class="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="#">
+      <span class="brand-mark">译</span>
+      <span class="brand-name">TranslatorX</span>
+    </a>
+    <div class="nav-links">
+      <a href="#how">三步一圈</a>
+      <a href="#features">功能</a>
+      <a href="#engines">翻译引擎</a>
+      <a href="#privacy">隐私</a>
+      <a class="btn btn-seal btn-nav" href="#download">下载</a>
+    </div>
+    </div>
+</nav>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="ruled-hero"></div>
+  <div class="container hero-grid">
+    <div>
+      <div class="hero-badge rise">
+        <span class="brand-mark" style="width:22px;height:22px;font-size:12px;border-radius:6px;">译</span>
+        桌面应用 · v1.0.3 · <span class="vers">免费开源</span>
+      </div>
+      <h1 class="hero-title rise">
+        写出来，<br>才是<span class="red">你的</span>。<span class="hand">— write it yourself</span>
+      </h1>
+      <p class="hero-sub rise">
+        先用母语写下你真正要发出去的内容——一封回信、一条消息、一句评论。
+        TranslatorX 把草稿拆句翻译，再由你<b>凭记忆亲手写出每一句</b>：
+        逐词批改、当场记住，练完的成品直接可用。
+      </p>
+      <div class="hero-actions rise">
+        <a class="btn btn-seal" href="#download">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          免费下载
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/JasonkayZK/translatorx" target="_blank" rel="noopener">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.55v-2.15c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.75 2.69 1.25 3.34.95.1-.74.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.16-1.18 3.16-1.18.63 1.59.24 2.76.12 3.05.74.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.38-5.25 5.66.41.35.77 1.05.77 2.12v3.14c0 .3.21.66.8.55A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
+          GitHub
+        </a>
+      </div>
+      <div class="hero-meta rise">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 1 0-.9-8.9 6 6 0 1 0-11.3 2.4A3.5 3.5 0 0 0 6 19h11.5Z"/></svg> macOS · Windows · Linux</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg> 18 种语言</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 数据本地存储</span>
+      </div>
+    </div>
+
+    <!-- 被红笔批改的句子：产品的灵魂时刻 -->
+    <div class="marked-card rise" style="animation-delay:.15s">
+      <div class="marked-head">
+        <span class="marked-label">第 3 句 / 练习中</span>
+        <span class="grade-stamp">乙</span>
+      </div>
+      <div class="marked-src">我今天下午会回复你的邮件。</div>
+      <div class="marked-copy">
+        <span class="word word-ok">I'll</span>
+        <span class="word word-ok">reply</span>
+        <span class="word word-ok">to</span>
+        <span class="word word-ok">your</span>
+        <span class="word word-ok">email</span>
+        <span class="word word-wrong">at</span>
+        <span class="word word-missing">[the]</span>
+        <span class="word word-ok">afternoon</span>
+        <span class="word word-typo">todaye</span><span class="word word-ok">.</span>
+      </div>
+      <div class="teacher-note">at → in；漏了 the；todaye → today ✓</div>
+      <div class="marked-foot">
+        <span class="chip chip-ok">正确 ×6</span>
+        <span class="chip chip-typo">拼写小错 ×1</span>
+        <span class="chip chip-wrong">错误 ×1</span>
+        <span class="chip chip-miss">缺漏 ×1</span>
+      </div>
+      <div class="bubble">译</div>
+    </div>
+  </div>
+</header>
+
+<!-- 三步 -->
+<section class="section" id="how">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-num">— 01 · 三步一圈</span>
+      <h2>草稿、批改、成品</h2>
+      <p>不是打开 App 背单词，而是把「学好外语」缝进你每天本来就要写的那些字里。</p>
+    </div>
+    <div class="steps">
+      <div class="step-card rise">
+        <span class="step-tag">1</span>
+        <h3>用母语起草</h3>
+        <p>写下你真实要发的内容。应用按整句或短句自动分段，接入大模型时还能保持原文的语气——邮件、聊天、评论。</p>
+        <div class="zh-quote">「我先写中文，脑子不卡。」</div>
+      </div>
+      <div class="step-card rise" style="animation-delay:.1s">
+        <span class="step-tag">2</span>
+        <h3>亲手写出每句</h3>
+        <p>看着母语原句，凭记忆写出译文。写不出来？换填空模式补全挖空的词，或用跟打模式逐字照打，肌肉先记一遍。</p>
+        <div class="zh-quote">「填空是给我这种手残党的台阶。」</div>
+      </div>
+      <div class="step-card rise" style="animation-delay:.2s">
+        <span class="step-tag">3</span>
+        <h3>红笔逐词批改</h3>
+        <p>答案与参考译文逐词对齐：正确、拼写小错、错误、缺漏、多余——一目了然。甲乙丙丁评分、成绩单、成品一键复制。</p>
+        <div class="zh-quote">「像小学老师改作文，还挺上瘾。」</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 模式表 -->
+<section class="section" id="modes" style="padding-top: 20px;">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-num">— 02 · 三种强度</span>
+      <h2>默写 · 填空 · 跟打</h2>
+      <p>今天状态好就凭记忆默写整句；累了就跟打一遍找感觉。挖空比例 20%–100% 随你调。</p>
+    </div>
+    <div class="modes-table rise">
+      <div class="modes-row">
+        <div>方式</div>
+        <div data-label="你看到的">你看到的</div>
+        <div data-label="你要做的">你要做的</div>
+      </div>
+      <div class="modes-row">
+        <div><span class="mmode">默写</span></div>
+        <div data-label="你看到的">只有母语原句</div>
+        <div data-label="你要做的">凭记忆写出整句译文</div>
+      </div>
+      <div class="modes-row">
+        <div><span class="mmode">填空</span></div>
+        <div data-label="你看到的">挖掉部分单词的译文</div>
+        <div data-label="你要做的">补全空格</div>
+      </div>
+      <div class="modes-row">
+        <div><span class="mmode">跟打</span></div>
+        <div data-label="你看到的">完整译文</div>
+        <div data-label="你要做的">逐字打出来</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 功能网格 -->
+<section class="section" id="features" style="padding-top: 20px;">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-num">— 03 · 不止默写</span>
+      <h2>一整条学习闭环</h2>
+      <p>从「写」出发，读、收藏、复习、统计一站配齐——收藏的词句会带着原文语境一起回流。</p>
+    </div>
+    <div class="features">
+      <div class="feature rise">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 6V2"/><path d="M5 9a7 7 0 0 1 14 0c0 6-7 5-7 11v2"/><circle cx="12" cy="17" r=".5"/></svg></div>
+        <h3>输入框「译」字气泡 <span class="en">Bubble</span></h3>
+        <p>在任何应用里打字，输入框旁出现朱红「译」图标，点开即译。译文可以直接填回原输入框，剪贴板原样恢复——无需切换窗口。</p>
+      </div>
+      <div class="feature rise" style="animation-delay:.06s">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 7h20M2 12h20M2 17h20"/></svg></div>
+        <h3>阅读理解 <span class="en">Read</span></h3>
+        <p>粘贴外语文本逐句对照阅读，点词查义并连同上下文收藏。配置大模型后可让 AI「拆解」句子语法词汇，追问到底。</p>
+      </div>
+      <div class="feature rise" style="animation-delay:.12s">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+        <h3>生词句本 <span class="en">Notebook</span></h3>
+        <p>单词带着出处句子、句子带着译文收藏。支持搜索、备注、默写、CSV 导出——导出的文件可以直接拖进 Anki。</p>
+      </div>
+      <div class="feature rise">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div>
+        <h3>间隔复习 <span class="en">Review</span></h3>
+        <p>SM-2 排期：忘掉的卡片 10 分钟内再见，记住的间隔越拉越长。根据释义拼写单词，或看母语原句默写整句。</p>
+      </div>
+      <div class="feature rise" style="animation-delay:.06s">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 4 4-7"/></svg></div>
+        <h3>学习概览 <span class="en">Stats</span></h3>
+        <p>连续天数、每日目标、按词数加权的准确率、近 8 周收藏图表、16 周学习热力图——努力看得见。</p>
+      </div>
+      <div class="feature rise" style="animation-delay:.12s">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a4 4 0 0 0-4 4c0 1.5-.7 2-2 2.5S4 11 4 12.5 5 15 6.5 15.5 8 17 8 18.5a4 4 0 0 0 4 4"/><circle cx="15" cy="8" r="2"/></svg></div>
+        <h3>AI 老师与朗读 <span class="en">AI Tutor</span></h3>
+        <p>写完让 AI 老师点评你的措辞；朗读优先用系统语音，没有则回退 Google 在线语音。任意 OpenAI 兼容接口都能接。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 翻译引擎 -->
+<section class="section" id="engines" style="padding-top: 20px;">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-num">— 04 · 翻译引擎</span>
+      <h2>用什么翻译，你说了算</h2>
+      <p>Google 免费开箱即用；想要更地道的译文或按语境意译，接 DeepL 或任意 OpenAI 兼容大模型。</p>
+    </div>
+    <div class="engines">
+      <div class="engine rise">
+        <div class="engine-head"><h3>Google 翻译</h3><span class="engine-kbd">开箱即用</span></div>
+        <p><span class="free">无需配置。</span>国内网络可能需要代理；可设 HTTP / SOCKS5 代理。</p>
+      </div>
+      <div class="engine rise" style="animation-delay:.08s">
+        <div class="engine-head"><h3>DeepL</h3><span class="engine-kbd">API Key</span></div>
+        <p>支持免费版 Key（以 <code>:fx</code> 结尾）。译文自然，适合正式书面内容。</p>
+      </div>
+      <div class="engine rise" style="animation-delay:.16s">
+        <div class="engine-head"><h3>大模型</h3><span class="engine-kbd">任意 OpenAI 兼容</span></div>
+        <p>OpenAI、DeepSeek、通义千问、Kimi、OpenRouter、本地 Ollama——内置预设一键填充，无需自己找地址。</p>
+      </div>
+      <p class="engine-note rise" style="grid-column: 1 / -1; margin: 6px 0 0;">AI 批改、句子拆解、AI 老师、按语气翻译，都需要配置大模型；与选哪个翻译服务无关。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 隐私 -->
+<section class="section" id="privacy" style="padding-top: 20px;">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-num">— 05 · 数据与隐私</span>
+      <h2>学习数据都在你手里</h2>
+    </div>
+    <div class="privacy-card rise">
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+      <div>
+        <h3>本地优先，联网才发</h3>
+        <p>设置、生词句本、复习进度、练习记录全部存在本地 SQLite 数据库里。只有在翻译、查词、用 AI 功能或在线朗读时才联网，而且只发给相应的服务，请求全部由 Rust 后端发出。API Key 存在本地，不上传任何统计或遥测。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 下载 -->
+<section class="dl" id="download">
+  <div class="container">
+    <div class="dl-card rise">
+      <span class="section-num">— 06 · 安装</span>
+      <h2>开始用母语，写出外语</h2>
+      <p>安装包托管在 GitHub Releases。Apple Silicon 与 Intel、Windows 安装器、Linux 三大格式都有。</p>
+      <div class="dl-platforms">
+        <a class="btn btn-seal" href="https://github.com/JasonkayZK/translatorx/releases/latest" target="_blank" rel="noopener">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          前往下载
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/JasonkayZK/translatorx" target="_blank" rel="noopener">查看源码</a>
+      </div>
+      <p class="dl-note">
+        macOS（.dmg）· Windows（.msi / .exe）· Linux（.deb / .rpm / .AppImage）<br>
+        打开 <a href="https://github.com/JasonkayZK/translatorx/releases/latest" target="_blank" rel="noopener">Releases 页面</a> 选择对应系统的安装包。macOS 悬浮图标需在设置中授权辅助功能。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- footer -->
+<footer>
+  <div class="container">
+    <div class="foot-grid">
+      <div class="foot-left">
+        <a class="brand" href="#" style="margin-bottom: 6px;">
+          <span class="brand-mark">译</span>
+          <span class="brand-name">TranslatorX</span>
+        </a>
+        <p>用母语写，亲手写出外语的桌面应用。</p>
+        <p class="foot-motto">翻译让你看懂，亲手写出来才让你学会。</p>
+      </div>
+      <div class="foot-links">
+        <a href="https://github.com/JasonkayZK/translatorx" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/JasonkayZK/translatorx/releases" target="_blank" rel="noopener">Releases</a>
+        <a href="https://github.com/JasonkayZK/translatorx/issues" target="_blank" rel="noopener">问题反馈</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 TranslatorX · 用 Tauri 2 与 React 构建</span>
+      <span>macOS · Windows · Linux</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+// 逐段入场：IntersectionObserver 触发 .rise
+(function () {
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var items = document.querySelectorAll(".rise");
+  if (reduce || !("IntersectionObserver" in window)) {
+    items.forEach(function (el) { el.style.opacity = 1; el.style.transform = "none"; });
+    return;
+  }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
+  items.forEach(function (el) { io.observe(el); });
+})();
+</script>
+</body>
+</html>
