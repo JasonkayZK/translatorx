@@ -1,0 +1,51 @@
+/* A compact tool, not a miniature of the main workspace. The outer 16px
+   radius and 1px border match the native window and its height calculation. */
+html.transparent, html.transparent body { background: transparent; }
+.glass { background: transparent; border: 1px solid var(--glass-edge); border-radius: 16px; box-shadow: inset 0 1px 0 var(--glass-edge); color: var(--ink); }
+.mini-window { position: relative; isolation: isolate; font-size: 13px; --glass-muted: color-mix(in srgb, var(--ink) 65%, var(--ink-2)); }
+.mini-window > :not(.window-backdrop) { position: relative; z-index: 1; }
+.mini-header { flex-shrink: 0; border-bottom: 1px solid var(--line); background: var(--chrome-fill); }
+.mini-titlebar { display: flex; align-items: center; gap: 6px; padding: 10px 10px 5px 13px; }
+.mini-modebar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 13px 12px; }
+.mini-modebar .segmented { background: var(--glass-chip); }
+.mini-modebar .segment { padding: 5px 16px; font-size: 11px; }
+.mini-modebar .segment[aria-selected="true"] { background: var(--glass-on); }
+.mini-appearance { margin: 0 13px 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--glass-res); font-size: 11px; }
+.mini-source, .mini-result { min-width: 0; border: 1px solid var(--line); border-radius: 11px; padding: 11px 12px; background: var(--glass-res); }
+.mini-source:focus-within, .mini-result:focus-within { border-color: color-mix(in srgb, var(--seal) 50%, var(--line)); }
+.mini-language { display: inline-flex; min-width: 0; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 5px; font-size: 10px; color: var(--glass-muted); }
+.mini-language:hover { background: var(--glass-chip); color: var(--ink); }
+.mini-textarea { display: block; width: 100%; resize: none; border: 0; background: transparent; color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 1.75; outline: none; }
+.mini-textarea:focus-visible { outline: none; }
+.mini-textarea::placeholder { color: var(--glass-muted); }
+.mini-result { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--seal) 48%, transparent); }
+.mini-result-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: -4px -5px 5px 0; font-size: 10px; font-weight: 500; color: var(--glass-muted); }
+.mini-footer { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 9px; background: var(--surface-fill); }
+.mini-primary { min-height: 34px; max-width: 195px; white-space: normal; text-align: center; font-size: 11px; }
+.mini-primary > span { flex-shrink: 0; }
+.mini-score { display: grid; width: 42px; height: 42px; flex-shrink: 0; place-items: center; border: 1px solid var(--line); border-radius: 11px; background: var(--glass-res); color: var(--ink); font-size: 17px; font-weight: 600; }
+.mini-practice-source { padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--glass-res); color: var(--ink-2); font-size: 13px; line-height: 1.75; }
+:root[data-style="studio"] .mini-source, :root[data-style="studio"] .mini-result, :root[data-style="studio"] .mini-practice-source { border-radius: 7px; }
+:root[data-style="studio"] .mini-result { box-shadow: inset 2px 0 0 var(--seal); }
+:root[data-style="glass"] .mini-source, :root[data-style="glass"] .mini-result { box-shadow: 0 1px 0 rgb(255 255 255 / .12) inset; }
+
+@layer components {
+  .glass-muted { color: var(--glass-muted); }
+  .glass-chip { background: var(--glass-chip); }
+  .glass-card { background: var(--glass-res); border: 1px solid var(--line); border-radius: 11px; }
+  .glass-icon { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 27px; height: 27px; border-radius: 7px; color: var(--glass-muted); transition: background-color .15s, color .15s; }
+  .glass-icon:hover { background: var(--glass-chip); color: var(--ink); }
+  .glass-icon[data-on="true"] { background: var(--glass-chip); color: var(--seal); }
+  .glass-icon:disabled { opacity: .4; pointer-events: none; }
+  .mini-close:hover { background: var(--danger-soft); color: var(--danger); }
+  .glass-seg { display: inline-flex; padding: 3px; border-radius: 9px; background: var(--glass-chip); }
+  .glass-seg > button { padding: 4px 10px; border-radius: 6px; font-size: 11.5px; color: var(--glass-muted); transition: background-color .15s, color .15s; }
+  .glass-seg > button[aria-selected="true"] { background: var(--glass-on); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
+  .glass-seg > button:disabled { opacity: .5; }
+  .glass-seg.xs > button { padding: 2px 8px; font-size: 11px; }
+  .glass-ghost { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 9px; border-radius: 7px; border: 1px solid var(--line); font-size: 12px; color: var(--glass-muted); white-space: nowrap; transition: background-color .15s, color .15s; }
+  .glass-ghost:hover { color: var(--ink); background: var(--glass-chip); }
+  .glass-logo { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 7px; flex-shrink: 0; background: var(--seal); color: var(--seal-ink); font-size: 13px; font-weight: 600; }
+}
+
+.mini-source, .mini-result, .mini-header, .mini-footer { backdrop-filter: blur(var(--surface-blur)); -webkit-backdrop-filter: blur(var(--surface-blur)); }

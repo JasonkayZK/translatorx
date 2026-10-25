@@ -1,0 +1,155 @@
+# Release：推送 v* 标签（或在 Actions 页面手动触发）时，构建三平台安装包并发布到 GitHub Release。
+# 手动触发且未填写标签时只构建产物、不创建 Release（用于验证构建流程）。
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "要构建并发布的已有标签（如 v1.0.1）；留空则仅构建、不发布"
+        required: false
+        default: ""
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Apple Silicon
+            platform: macos-latest
+            target: aarch64-apple-darwin
+            args: "--target aarch64-apple-darwin"
+          - name: macOS Intel
+            platform: macos-latest
+            target: x86_64-apple-darwin
+            args: "--target x86_64-apple-darwin"
+          - name: Linux
+            platform: ubuntu-22.04
+            target: ""
+            args: ""
+          - name: Windows
+            platform: windows-latest
+            target: ""
+            args: ""
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            patchelf \
+            build-essential curl wget file
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 8.6.7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify tag matches app version
+        if: github.event_name == 'push' || inputs.tag != ''
+        shell: bash
+        run: |
+          ref="${{ github.event_name == 'push' && github.ref_name || inputs.tag }}"
+          tag="${ref#v}"
+          version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::标签 $ref 与应用版本 $version 不一致：请先同步 src-tauri/tauri.conf.json、src-tauri/Cargo.toml 与 package.json 的 version，再重新发版。"
+            exit 1
+          fi
+
+      # macOS 签名与公证（可选）。只有仓库 Secrets 里配置了 APPLE_CERTIFICATE 时，才把这组变量写入后续步骤的环境；
+      # 未配置时一个都不设置，产物为临时签名（ad-hoc），见 docs/macos-signing.md。
+      # 不能把它们直接写进 tauri-action 的 env：Secret 不存在时值为空字符串但变量仍然存在，
+      # tauri-bundler 会据此尝试 `security import` 一个空证书，并报
+      # "SecKeychainItemImport: One or more parameters passed to a function were not valid"。
+      - name: Enable macOS signing when secrets are configured
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "APPLE_CERTIFICATE 未配置，使用临时签名（ad-hoc）构建。"
+            exit 0
+          fi
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            value="${!name}"
+            if [ -n "$value" ]; then
+              {
+                echo "${name}<<__TRANSLATORX_EOF__"
+                echo "$value"
+                echo "__TRANSLATORX_EOF__"
+              } >> "$GITHUB_ENV"
+              echo "已导出 $name"
+            fi
+          done
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: pnpm tauri
+          # 推送标签时使用标签本身；手动触发时使用输入的标签（留空则只构建不发布）。
+          tagName: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+          releaseName: "TranslatorX v__VERSION__"
+          releaseBody: |
+            三平台桌面安装包，下载对应平台的文件安装：
+
+            - macOS：`.dmg`（Apple Silicon 与 Intel 各一份）
+            - Linux：`.deb`、`.rpm`、`.AppImage`
+            - Windows：`.msi`、`.exe`（NSIS 安装器）
+
+            macOS 未签名版本首次打开若提示"无法验证开发者"，请在"系统设置 → 隐私与安全性"中允许。
+          # 直接发布；如需先人工检查再发布，改为 true 并手动发布草稿。
+          releaseDraft: false
+          # 含 "-" 的标签（如 v0.2.0-beta.1）自动标记为预发布。
+          prerelease: ${{ contains(inputs.tag || github.ref_name, '-') }}
+          # 本项目未接入 Tauri updater，无需上传更新清单。
+          uploadUpdaterJson: false
+          args: ${{ matrix.args }}

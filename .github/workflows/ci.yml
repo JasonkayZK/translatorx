@@ -1,0 +1,79 @@
+# CI：推送到 main 或提交 PR 时执行前后端检查。
+#
+# 注意：
+# - Rust 代码未采用 rustfmt 默认风格（cargo fmt --check 会有大量差异），因此 CI 不检查格式。
+# - cargo clippy 目前存在少量告警（如 AppError 体积、参数个数），暂不加 -D warnings；
+#   清理完毕后可改为 `cargo clippy --locked --all-targets -- -D warnings` 提高严格度。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend (vitest + build)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 8.6.7
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Unit tests (vitest)
+        run: pnpm test
+      - name: Typecheck and build (tsc + vite)
+        run: pnpm build
+
+  rust:
+    name: Rust (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Linux system dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            build-essential curl wget file
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - name: Clippy (lib, tests, examples)
+        working-directory: src-tauri
+        run: cargo clippy --locked --all-targets
+      - name: Tests
+        working-directory: src-tauri
+        run: cargo test --locked

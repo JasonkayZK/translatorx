@@ -1,0 +1,39 @@
+@import "../themes.css";
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Stay inside the native 28pt host: 22pt mark, 3pt for its edge and shadow. */
+#bubble {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--seal-ink) 35%, transparent);
+  border-radius: 7px;
+  cursor: pointer;
+  background: var(--seal);
+  color: var(--seal-ink);
+  font: 600 12px/1 -apple-system, "PingFang SC", "Hiragino Sans", sans-serif;
+  box-shadow: 0 0 0 1px var(--glass-edge), 0 1px 3px rgb(0 0 0 / .2), inset 0 1px 0 rgb(255 255 255 / .15);
+  opacity: .82;
+  transition: opacity .15s, transform .15s;
+}
+#bubble:hover { opacity: 1; transform: translateY(-.5px); }
+#bubble:active { transform: scale(.94); }
+#bubble:focus-visible { outline: 1px solid var(--seal); outline-offset: 2px; }
+[data-style="glass"] #bubble { border-radius: 50%; background: var(--glass-res); color: var(--seal); border-color: var(--glass-edge); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+[data-style="studio"] #bubble { border-radius: 5px; box-shadow: 0 0 0 1px var(--glass-edge), 0 1px 3px rgb(0 0 0 / .25); }
+@media (prefers-reduced-motion: reduce) { #bubble { transition: none; } }

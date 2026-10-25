@@ -1,0 +1,27 @@
+/* Material alpha is applied to background fills, never to the content tree. */
+:root[data-surface="main"], :root[data-surface="mini"], .app-shell, .mini-window, .material-preview {
+  --surface-fill: color-mix(in srgb, var(--card) calc(var(--surface-opacity, .85) * 100%), transparent);
+  --editor-fill: color-mix(in srgb, var(--editor) calc(var(--editor-opacity, .97) * 100%), transparent);
+  --chrome-fill: color-mix(in srgb, var(--sidebar) calc(var(--chrome-opacity, .89) * 100%), transparent);
+}
+html, html body { background: transparent; }
+.app-shell { position: relative; isolation: isolate; }
+.app-sidebar, .app-content { position: relative; z-index: 1; }
+.window-backdrop { position: absolute; inset: 0; z-index: 0; overflow: hidden; border-radius: inherit; pointer-events: none; background: var(--paper); opacity: var(--window-opacity, .85); }
+.window-wallpaper { position: absolute; width: 100%; height: 100%; inset: 0; }
+.window-wallpaper[data-fit="cover"] { inset: calc(-1 * var(--image-bleed)); width: calc(100% + var(--image-bleed) * 2); height: calc(100% + var(--image-bleed) * 2); }
+.card, .app-sidebar, .reading-panel, .recent-item { backdrop-filter: blur(var(--surface-blur, 18px)); -webkit-backdrop-filter: blur(var(--surface-blur, 18px)); }
+.settings-nav { backdrop-filter: blur(var(--surface-blur, 18px)); -webkit-backdrop-filter: blur(var(--surface-blur, 18px)); }
+
+.material-controls { display: grid; gap: 14px; }
+.material-range { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(100px, 1.4fr) 42px; align-items: center; gap: 12px; font-size: 12px; color: var(--ink-2); }
+.material-range input { width: 100%; min-width: 0; accent-color: var(--seal); }
+.material-range output { font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+.material-preview { position: relative; min-height: 82px; overflow: hidden; border-radius: 10px; background-color: var(--paper-2); background-image: linear-gradient(35deg, transparent 35%, var(--seal-soft) 35% 65%, transparent 65%), repeating-conic-gradient(var(--line) 0% 25%, transparent 0% 50%); background-size: auto, 20px 20px; }
+.material-preview-pane { position: relative; margin: 12px 18px; padding: 15px; border: 1px solid var(--glass-edge); border-radius: 9px; color: var(--ink); background: var(--surface-fill); backdrop-filter: blur(var(--surface-blur)); -webkit-backdrop-filter: blur(var(--surface-blur)); box-shadow: var(--shadow); font-size: 12px; }
+.material-note { font-size: 11px; line-height: 1.7; color: var(--ink-3); }
+.background-preview { position: relative; display: grid; min-height: 170px; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--paper-2); }
+.background-preview img { width: 100%; height: 190px; object-fit: cover; }
+.background-controls { display: grid; gap: 18px; }
+.background-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+@media (max-width: 600px) { .material-range { grid-template-columns: minmax(80px, 1fr) minmax(80px, 1.2fr) 34px; gap: 8px; } }
