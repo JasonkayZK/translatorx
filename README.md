@@ -8,6 +8,8 @@ English | [简体中文](README-CN.md)
 
 TranslatorX is a desktop app for learning a language by writing what you actually need to write — an email reply, a chat message, a comment. You draft it in your native language. TranslatorX splits the draft into sentences and translates them, and then you write each sentence yourself in the target language: from memory, by filling in blanks, or by copy-typing. Every attempt is checked word by word and marked up in red pen. At the end you have a finished text ready to send, and the words and sentences you saved come back later for spaced-repetition review.
 
+![demo](./images/demo-1.png)
+
 > Translation helps you understand. Writing it yourself is how you learn.
 
 > [!NOTE]
